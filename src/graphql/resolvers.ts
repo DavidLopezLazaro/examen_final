@@ -1,155 +1,92 @@
 import { IResolvers } from "@graphql-tools/utils";
-import {
-    addClothing,
-    buyClothing,
-    getClothes,
-    getClothingById,
-    getClothesByColor,
-    getClothesBySize,
-    updateClothing,
-    deleteClothing,
-} from "../collections/productsClothingStore";
-import {
-    createUser,
-    validateUser,
-    findUserById,
-} from "../collections/usersClothingStore";
-import { signToken } from "../auth";
-import { ClothingUser } from "../types";
-import { getDB } from "../db/mongo";
 import { ObjectId } from "mongodb";
-import bcrypt from "bcryptjs";
+import { getDB } from "../db/mongo";
+import { signToken } from "../auth";
+import {COLLECTION_TRAINERS} from "../utils";
+import { getPokemons, getPokemonById, addPokemon } from "../collections/pokemons";
+import { createTrainer, validateTrainer, catchPokemonForTrainer,freeOwnedPokemon, } from "../collections/trainers";
+import { TrainerUser } from "../types";
+
 
 export const resolvers: IResolvers = {
-    Query: {
-        clothes: async (_, { page, size }) => getClothes(page, size),
+  Query: {
+    me: async (_, __, { trainer }) => {
+      if (!trainer) throw new Error("Not authenticated");
 
-        clothing: async (_, { id }) => getClothingById(id),
-
-        me: async (_, __, { user }) => {
-            if (!user) return null;
-            return { _id: user._id.toString(), ...user };
-        },
-
-        clothesByColor: async (_, { color }) => getClothesByColor(color),
-
-        clothesBySize: async (_, { size }) => getClothesBySize(size),
-
-        clothesCount: async () => {
-            const db = getDB();
-            return db.collection("productsClothingStore").countDocuments();
-        },
-
-        myClothes: async (_, __, { user }) => {
-            if (!user) throw new Error("Not authenticated");
-            return user.clothes || [];
-        },
-
-        clothingExists: async (_, { id }) => {
-            const db = getDB();
-            const clothing = await db
-                .collection("productsClothingStore")
-                .findOne({ _id: new ObjectId(id) });
-            return !!clothing;
-        },
-
-        userById: async (_, { id }) => findUserById(id),
+      return {
+        _id: trainer._id.toString(),
+        ...trainer
+      };
+      
     },
 
-    Mutation: {
-        addClothing: async (_, { name, size, color, price }) =>
-            addClothing(name, size, color, price),
-
-        buyClothing: async (_, { clothingId }, { user }) => {
-            if (!user) throw new Error("You must be logged in");
-            return buyClothing(clothingId, user._id.toString());
-        },
-
-        register: async (_, { email, password }) =>
-            signToken(await createUser(email, password)),
-
-        login: async (_, { email, password }) => {
-            const user = await validateUser(email, password);
-            if (!user) throw new Error("Invalid credentials");
-            return signToken(user._id.toString());
-        },
-
-        updateClothing: async (_, args) => {
-            const { id, ...updates } = args;
-            return updateClothing(id, updates);
-        },
-
-        deleteClothing: async (_, { id }) => deleteClothing(id),
-
-        removeClothingFromUser: async (_, { clothingId }, { user }) => {
-            if (!user) throw new Error("Not authenticated");
-            const db = getDB();
-
-            await db.collection("usersClothingStore").updateOne(
-                { _id: user._id },
-                { $pull: { clothes: clothingId } }
-            );
-
-            return db.collection("usersClothingStore").findOne({ _id: user._id });
-        },
-
-        changePassword: async (_, { oldPassword, newPassword }, { user }) => {
-            if (!user) throw new Error("Not authenticated");
-
-            const ok = await bcrypt.compare(oldPassword, user.password);
-            if (!ok) throw new Error("Old password incorrect");
-
-            const hashed = await bcrypt.hash(newPassword, 10);
-            const db = getDB();
-
-            await db.collection("usersClothingStore").updateOne(
-                { _id: user._id },
-                { $set: { password: hashed } }
-            );
-
-            return true;
-        },
-
-        deleteUser: async (_, __, { user }) => {
-            if (!user) throw new Error("Not authenticated");
-            const db = getDB();
-            await db.collection("usersClothingStore").deleteOne({
-                _id: user._id,
-            });
-            return true;
-        },
+    pokemons: async (_, { page, size }) => {
+      return await getPokemons(page, size);
     },
 
-    /* ===== ENCADENADOS TIPO EXAMEN ===== */
+    pokemon: async (_, { id }) => {
+      return await getPokemonById(id);
+    },
+  },
 
-    User: {
-        clothes: async (parent: ClothingUser) => {
-            const db = getDB();
-            if (!parent.clothes) return [];
-
-            const objectIds = parent.clothes.map((id) => new ObjectId(id));
-
-            return db
-                .collection("productsClothingStore")
-                .find({ _id: { $in: objectIds } })
-                .toArray();
-        },
-
-        clothesCount: async (parent: ClothingUser) => {
-            if (!parent.clothes) return 0;
-            return parent.clothes.length;
-        },
+  Mutation: {
+    startJourney: async (_, { name, password }) => {
+      const trainerId = await createTrainer(name, password);
+      return signToken(trainerId);
     },
 
-    Clothing: {
-        buyers: async (parent) => {
-            const db = getDB();
-            const clothingId = parent._id.toString();
-
-            return db
-                .collection("usersClothingStore")
-                .find({ clothes: clothingId })
-                .toArray();
-        },
+    login: async (_, { name, password }) => {
+      const trainer = await validateTrainer(name, password);
+      if (!trainer) throw new Error("Invalid credentials");
+      return signToken(trainer._id.toString());
     },
+
+    createPokemon: async (_, {name, description, height, weight, types}, { trainer }) => {
+      if (!trainer) throw new Error("Not authenticated");
+
+      return await addPokemon(name, description, height, weight, types);
+    },
+
+    catchPokemon: async (_, { pokemonId, nickname }, { trainer }) => {
+      if (!trainer) throw new Error("Not authenticated");
+
+      const owned = await catchPokemonForTrainer(trainer._id.toString(), pokemonId, nickname);
+
+      return {
+        _id: owned!._id.toString(),
+        nickname: owned!.nickname,
+        level: owned!.level,
+      };
+    },
+
+    freePokemon: async (_, { ownedPokemonId }, { trainer }) => {
+      if (!trainer) throw new Error("Not authenticated");
+
+      await freeOwnedPokemon(trainer._id.toString(), ownedPokemonId);
+
+      return {
+        _id: trainer!._id.toString(),
+        name: trainer!.name,
+        pokemons: trainer!.pokemons || [],
+      };
+    },
+  },
+
+  Trainer: {
+  pokemons: async (parent: TrainerUser) => {
+    const db = getDB();
+    const listaDeIdsDePokemons = parent.pokemons;
+    if (!listaDeIdsDePokemons) return [];
+
+    const objectIds = listaDeIdsDePokemons.map(
+      (id) => new ObjectId(id)
+    );
+
+    return db
+      .collection(COLLECTION_TRAINERS)
+      .find({ _id: { $in: objectIds } })
+      .toArray();
+  },
+},
+
 };

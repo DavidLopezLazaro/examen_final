@@ -1,6 +1,2 @@
-
-
-
-
-export const COLLECTION_USERS = "usersClothingStore";
-export const COLLECTION_PRODUCTS = "productsClothingStore";
+export const COLLECTION_TRAINERS = "trainers";
+export const COLLECTION_POKEMONS = "pokemons";

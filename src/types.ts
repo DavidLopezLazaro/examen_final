@@ -1,11 +1,5 @@
-
-
-
-
-
-
-export type ClothingUser = {
-    _id: string;
-    email: string;
-    clothes: string[];
-}
+export type TrainerUser = {
+  _id: string;
+  name: string;
+  pokemons: string[];
+};

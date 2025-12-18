@@ -1,0 +1,14 @@
+/*
+aa
+git add .
+git commit -m "CAMBIOS A TUTI"
+git push
+*/
+
+
+VARIABLES DEL .ENV son :
+    MONGO_USER
+    CLUSTER
+    APPNAME
+    SECRET
+    MONGO_URL

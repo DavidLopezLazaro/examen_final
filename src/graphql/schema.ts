@@ -1,53 +1,67 @@
 import { gql } from "apollo-server";
 
 export const typeDefs = gql`
+  enum PokemonType {
+    NORMAL
+    FIRE
+    WATER
+    ELECTRIC
+    GRASS
+    ICE
+    FIGHTING
+    POISON
+    GROUND
+    FLYING
+    PSYCHIC
+    BUG
+    ROCK
+    GHOST
+    DRAGON
+  }
 
-    type User {
-        _id: ID!
-        email: String!
-        clothes: [Clothing]!
-        clothesCount: Int!
-    }
+  type Pokemon {
+    _id: ID!
+    name: String!
+    description: String!
+    height: Float!
+    weight: Float!
+    types: [PokemonType!]!
+  }
 
-    type Clothing {
-        _id: ID!
-        name: String!
-        size: String!
-        color: String!
-        price: Float!
-        buyers: [User]!
-    }
+  type OwnedPokemon {
+    _id: ID!
+    pokemon: Pokemon!
+    nickname: String
+    attack: Int!
+    defense: Int!
+    speed: Int!
+    special: Int!
+    level: Int!
+  }
 
-    type Query {
-        me: User
-        clothes(page: Int, size: Int): [Clothing]!
-        clothing(id: ID!): Clothing
+  type Trainer {
+    _id: ID!
+    name: String!
+    pokemons: [OwnedPokemon!]!
+  }
 
-        clothesByColor(color: String!): [Clothing]!
-        clothesBySize(size: String!): [Clothing]!
-        clothesCount: Int!
-        myClothes: [Clothing]!
-        clothingExists(id: ID!): Boolean!
-        userById(id: ID!): User
-    }
+  type Query {
+    me: Trainer!
+    pokemons(page: Int, size: Int): [Pokemon!]!
+    pokemon(id: ID!): Pokemon
+  }
 
-    type Mutation {
-        addClothing(name: String!, size: String!, color: String!, price: Float!): Clothing!
-        buyClothing(clothingId: ID!): User!
-        register(email: String!, password: String!): String!
-        login(email: String!, password: String!): String!
-
-        updateClothing(
-            id: ID!
-            name: String
-            size: String
-            color: String
-            price: Float
-        ): Clothing
-
-        deleteClothing(id: ID!): Boolean!
-        removeClothingFromUser(clothingId: ID!): User!
-        changePassword(oldPassword: String!, newPassword: String!): Boolean!
-        deleteUser: Boolean!
-    }
+  type Mutation {
+    startJourney(name: String!, password: String!): String!
+    login(name: String!, password: String!): String!
+    createPokemon(
+      name: String!
+      description: String!
+      height: Float!
+      weight: Float!
+      types: [PokemonType!]!
+    ): Pokemon!
+    catchPokemon(pokemonId: ID!, nickname: String): OwnedPokemon!
+    freePokemon(ownedPokemonId: ID!): Trainer!
+  }
 `;
