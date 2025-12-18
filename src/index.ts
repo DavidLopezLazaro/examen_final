@@ -25,4 +25,8 @@ const start = async () => {
 
 start().catch(err=>console.error(err));
 
-//git init
+/*
+git add .
+git commit -m "Descripción del cambio"
+git push
+*/
